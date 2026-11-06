@@ -1238,7 +1238,7 @@ Ltac TransfInstr :=
 (** The proof of simulation is a case analysis over the transition
   in the source code. *)
 
-Definition eventually := Smallstep.eventually RTL.step RTL.final_state ge.
+Definition eventually := Smallstep.eventually RTL.step RTL.function_final_state ge.
 
 Lemma transf_step_correct:
   forall s1 t s2, step ge s1 t s2 ->
@@ -1585,6 +1585,8 @@ Proof.
   apply plus_one; auto.
   apply eventually_now. eauto using sound_step.
 + exists n, s2'; split; auto.
+  eapply eventually_final_state with (final_state := RTL.function_final_state).
+  { intros s r FIN; inv FIN; constructor. }
   apply eventually_and_invariant; auto.
   apply sound_step.
   eapply sound_step; eauto.

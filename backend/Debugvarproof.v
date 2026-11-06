@@ -388,7 +388,9 @@ Inductive match_stackframes: Linear.stackframe -> Linear.stackframe -> Prop :=
       match_code c tc ->
       match_stackframes
         (Stackframe f sp rs c)
-        (Stackframe tf sp rs (add_delta_ranges before after tc)).
+        (Stackframe tf sp rs (add_delta_ranges before after tc))
+  | match_stackframes_external: forall sg ls,
+      match_stackframes (ExternalFrame sg ls) (ExternalFrame sg ls).
 
 Inductive match_states: Linear.state ->  Linear.state -> Prop :=
   | match_states_instr:

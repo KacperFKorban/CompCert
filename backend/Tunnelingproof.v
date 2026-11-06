@@ -330,7 +330,10 @@ Inductive match_stackframes: stackframe -> stackframe -> Prop :=
       locmap_lessdef ls0 tls0 ->
       match_stackframes
          (Stackframe f sp ls0 bb)
-         (Stackframe (tunnel_function f) sp tls0 (tunneled_block f bb)).
+         (Stackframe (tunnel_function f) sp tls0 (tunneled_block f bb))
+  | match_stackframes_external: forall sg ls tls,
+      locmap_lessdef ls tls ->
+      match_stackframes (ExternalFrame sg ls) (ExternalFrame sg tls).
 
 Inductive match_states: state -> state -> Prop :=
   | match_states_intro:

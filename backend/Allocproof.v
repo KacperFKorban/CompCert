@@ -1889,8 +1889,15 @@ Qed.
 
 (** The simulation relation *)
 
+Section CALLER.
+
+(** [None] is the whole-program caller; [Some (sg, ls)] describes a fresh
+    external invocation, including its result signature and saved locations. *)
+Variable caller: option (signature * locset).
+
 Inductive match_stackframes: list RTL.stackframe -> list LTL.stackframe -> signature -> Prop :=
   | match_stackframes_nil: forall sg,
+      caller = None ->
       sg.(sig_res) = Xint ->
       match_stackframes nil nil sg
   | match_stackframes_cons:
@@ -1913,7 +1920,11 @@ Inductive match_stackframes: list RTL.stackframe -> list LTL.stackframe -> signa
       match_stackframes
         (RTL.Stackframe res f sp pc rs :: s)
         (LTL.Stackframe tf sp ls bb :: ts)
-        sg.
+        sg
+  | match_stackframes_external: forall sg sg0 ls,
+      caller = Some (sg0, ls) ->
+      sg.(sig_res) = sg0.(sig_res) ->
+      match_stackframes nil (LTL.ExternalFrame sg0 ls :: nil) sg.
 
 Inductive match_states: RTL.state -> LTL.state -> Prop :=
   | match_states_intro:
@@ -1955,10 +1966,11 @@ Lemma match_stackframes_change_sig:
   match_stackframes s ts sg'.
 Proof.
   intros. inv H.
-  constructor. congruence.
+  constructor; congruence.
   econstructor; eauto.
   unfold proj_sig_res in *. rewrite H0; auto.
   intros. rewrite (loc_result_exten sg' sg) in H by auto. eauto.
+  econstructor; eauto; congruence.
 Qed.
 
 Ltac UseShape :=
@@ -2482,9 +2494,13 @@ Proof.
   apply wt_regset_assign; auto. rewrite WTRES0; auto.
 Qed.
 
+End CALLER.
+
+Local Notation legacy_match_states := (match_states None).
+
 Lemma initial_states_simulation:
   forall st1, RTL.initial_state prog st1 ->
-  exists st2, LTL.initial_state tprog st2 /\ match_states st1 st2.
+  exists st2, LTL.initial_state tprog st2 /\ legacy_match_states st1 st2.
 Proof.
   intros. inv H.
   exploit function_ptr_translated; eauto. intros [tf [FIND TR]].
@@ -2496,7 +2512,7 @@ Proof.
   rewrite (match_program_main TRANSF).  auto.
   congruence.
   constructor; auto.
-  constructor. rewrite SIG; rewrite H3; auto.
+  constructor; auto. rewrite SIG; rewrite H3; auto.
   rewrite SIG, H3, loc_arguments_main. auto.
   red; auto.
   apply Mem.extends_refl.
@@ -2505,11 +2521,11 @@ Qed.
 
 Lemma final_states_simulation:
   forall st1 st2 r,
-  match_states st1 st2 -> RTL.final_state st1 r -> LTL.final_state st2 r.
+  legacy_match_states st1 st2 -> RTL.final_state st1 r -> LTL.final_state st2 r.
 Proof.
-  intros. inv H0. inv H. inv STACKS.
+  intros. inv H0. inv H. inv STACKS; try discriminate.
   econstructor. rewrite <- (loc_result_exten sg). inv RES; auto.
-  rewrite H; auto.
+  assumption.
 Qed.
 
 Lemma wt_prog: wt_program prog.
@@ -2528,7 +2544,7 @@ Qed.
 Theorem transf_program_correct:
   forward_simulation (RTL.semantics prog) (LTL.semantics tprog).
 Proof.
-  set (ms := fun s s' => wt_state s /\ match_states s s').
+  set (ms := fun s s' => wt_state s /\ legacy_match_states s s').
   eapply forward_simulation_plus with (match_states := ms).
 - apply senv_preserved.
 - intros. exploit initial_states_simulation; eauto. intros [st2 [A B]].
@@ -2536,7 +2552,7 @@ Proof.
   apply wt_initial_state with (p := prog); auto. exact wt_prog.
 - intros. destruct H. eapply final_states_simulation; eauto.
 - intros. destruct H0.
-  exploit step_simulation; eauto. intros [s2' [A B]].
+  exploit (step_simulation None); eauto. intros [s2' [A B]].
   exists s2'; split. exact A. split.
   eapply subject_reduction; eauto. eexact wt_prog. eexact H.
   auto.

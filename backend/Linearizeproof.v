@@ -492,7 +492,9 @@ Inductive match_stackframes: LTL.stackframe -> Linear.stackframe -> Prop :=
       is_tail c tf.(fn_code) ->
       match_stackframes
         (LTL.Stackframe f sp ls bb)
-        (Linear.Stackframe tf sp ls (linearize_block bb c)).
+        (Linear.Stackframe tf sp ls (linearize_block bb c))
+  | match_stackframes_external: forall sg ls,
+      match_stackframes (LTL.ExternalFrame sg ls) (Linear.ExternalFrame sg ls).
 
 Inductive match_states: LTL.state -> Linear.state -> Prop :=
   | match_states_add_branch:

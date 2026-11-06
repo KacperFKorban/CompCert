@@ -419,8 +419,8 @@ Definition def_env (f: function) (e: Cminor.env) : Prop :=
   forall id, In id f.(fn_params) \/ In id f.(fn_vars) -> exists v, e!id = Some v.
 
 Inductive wt_cont_call: cont -> xtype -> Prop :=
-  | wt_cont_Kstop:
-      wt_cont_call Kstop Xint
+  | wt_cont_Kstop: forall tret,
+      wt_cont_call Kstop tret
   | wt_cont_Kcall: forall optid f sp e k tret env
         (WT_FN: wt_function env f)
         (WT_CONT: wt_cont env f.(fn_sig).(sig_res) k)

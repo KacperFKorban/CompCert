@@ -255,7 +255,9 @@ Inductive stackframe: Type :=
              (sp: val)        (**r stack pointer in calling function *)
              (retaddr: val)   (**r Asm return address in calling function *)
              (c: code),       (**r program point in calling function *)
-      stackframe.
+      stackframe
+  | ExternalFrame (sp: block).
+      (**r Caller-owned argument area for a fresh invocation, returning to null. *)
 
 Inductive state: Type :=
   | State:
@@ -282,12 +284,14 @@ Definition parent_sp (s: list stackframe) : val :=
   match s with
   | nil => Vnullptr
   | Stackframe f sp ra c :: s' => sp
+  | ExternalFrame sp :: s' => Vptr sp Ptrofs.zero
   end.
 
 Definition parent_ra (s: list stackframe) : val :=
   match s with
   | nil => Vnullptr
   | Stackframe f sp ra c :: s' => ra
+  | ExternalFrame sp :: s' => Vnullptr
   end.
 
 Inductive step: state -> trace -> state -> Prop :=

@@ -195,7 +195,9 @@ Inductive match_stackframes: stackframe -> stackframe -> Prop :=
       match_stackframes
         (Stackframe f sp ls c)
         (Stackframe (transf_function f) sp ls
-          (remove_unused_labels (labels_branched_to f.(fn_code)) c)).
+          (remove_unused_labels (labels_branched_to f.(fn_code)) c))
+  | match_stackframes_external: forall sg ls,
+      match_stackframes (ExternalFrame sg ls) (ExternalFrame sg ls).
 
 Inductive match_states: state -> state -> Prop :=
   | match_states_intro:

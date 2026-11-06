@@ -1235,6 +1235,19 @@ End RELSEM.
 
 (** Execution of whole programs. *)
 
+(** A fresh exported-function invocation starts at its actual code entry,
+    with a caller-owned stack argument area and a null return address. *)
+Definition function_entry_state (p: program) (id: ident) (sg: signature)
+    (args: list val) (m: mem) (s: state) : Prop :=
+  exists rs b f sp,
+    s = State rs m /\
+    Genv.find_symbol (Genv.globalenv p) id = Some b /\
+    Genv.find_funct_ptr (Genv.globalenv p) b = Some (Internal f) /\
+    rs PC = Vptr b Ptrofs.zero /\
+    rs (IR X30) = Vnullptr /\
+    rs (SP) = Vptr sp Ptrofs.zero /\
+    extcall_arguments rs m sg args.
+
 Inductive initial_state (p: program): state -> Prop :=
   | initial_state_intro: forall m0,
       Genv.init_mem p = Some m0 ->

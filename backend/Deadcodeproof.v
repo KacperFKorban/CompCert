@@ -770,7 +770,7 @@ Qed.
 
 (** * The simulation diagram *)
 
-Definition eventually := Smallstep.eventually RTL.step RTL.final_state ge.
+Definition eventually := Smallstep.eventually RTL.step RTL.function_final_state ge.
 
 Theorem step_simulation:
   forall S1 t S2, step ge S1 t S2 ->
@@ -1276,6 +1276,8 @@ Proof.
   apply plus_one; auto.
   apply eventually_now. eauto using sound_step.
 + exists n, s2'; split; auto.
+  eapply eventually_final_state with (final_state := RTL.function_final_state).
+  { intros s r FIN; inv FIN; constructor. }
   apply eventually_and_invariant; auto.
   apply sound_step.
   eapply sound_step; eauto.

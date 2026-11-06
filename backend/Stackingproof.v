@@ -1357,6 +1357,8 @@ Qed.
 Fixpoint stack_contents (j: meminj) (cs: list Linear.stackframe) (cs': list Mach.stackframe) : massert :=
   match cs, cs' with
   | nil, nil => pure True
+  | Linear.ExternalFrame sg ls :: nil, Mach.ExternalFrame sp :: nil =>
+      contains_locations j sp Stacklayout.fe_ofs_arg (size_arguments sg) Outgoing ls
   | Linear.Stackframe f _ ls c :: cs, Mach.Stackframe fb (Vptr sp' _) ra c' :: cs' =>
       frame_contents f j sp' ls (parent_locset cs) (parent_sp cs') (parent_ra cs')
       ** stack_contents j cs cs'
@@ -1386,7 +1388,12 @@ Inductive match_stacks (j: meminj):
       match_stacks j
                    (Linear.Stackframe f (Vptr sp Ptrofs.zero) ls c :: cs)
                    (Stackframe fb (Vptr sp' Ptrofs.zero) ra c' :: cs')
-                   sg.
+                   sg
+  | match_stacks_external: forall sg0 ls sp sg,
+      (forall ofs ty, In (S Outgoing ofs ty) (regs_of_rpairs (loc_arguments sg)) ->
+         0 <= ofs /\ ofs + typesize ty <= size_arguments sg0 /\ (typealign ty | ofs)) ->
+      match_stacks j (Linear.ExternalFrame sg0 ls :: nil)
+                     (Mach.ExternalFrame sp :: nil) sg.
 
 (** Invariance with respect to change of memory injection. *)
 
@@ -1397,11 +1404,15 @@ Lemma stack_contents_change_meminj:
   m |= stack_contents j' cs cs' ** P.
 Proof.
 Local Opaque sepconj.
-  induction cs as [ | [] cs]; destruct cs' as [ | [] cs']; simpl; intros; auto.
-  destruct sp0; auto.
+  induction cs as [ | [f sp ls c | sg ls] cs];
+  intros cs' P SEP; destruct cs' as [ | [fb sp' ra c' | sp'] cs'];
+  simpl in *; auto.
+- destruct sp'; auto.
   rewrite sep_assoc in *.
   apply frame_contents_incr with (j := j); auto.
   rewrite sep_swap. apply IHcs. rewrite sep_swap. assumption.
+- destruct cs, cs'; simpl in *; auto.
+  eapply sep_imp; [exact SEP | apply contains_locations_incr; eauto | split; auto].
 Qed.
 
 Lemma match_stacks_change_meminj:
@@ -1412,6 +1423,7 @@ Lemma match_stacks_change_meminj:
 Proof.
   induction 2; intros.
 - constructor; auto.
+- econstructor; eauto.
 - econstructor; eauto.
 Qed.
 
@@ -1426,6 +1438,7 @@ Proof.
   induction 1; intros.
   econstructor; eauto.
   econstructor; eauto. intros. elim (H0 _ H1).
+  econstructor; eauto. intros. elim (H0 _ H1).
 Qed.
 
 (** Typing properties of [match_stacks]. *)
@@ -1435,7 +1448,7 @@ Lemma match_stacks_type_sp:
   match_stacks j cs cs' sg ->
   Val.has_type (parent_sp cs') Tptr.
 Proof.
-  induction 1; unfold parent_sp. apply Val.Vnullptr_has_type. apply Val.Vptr_has_type.
+  induction 1; unfold parent_sp. apply Val.Vnullptr_has_type. apply Val.Vptr_has_type. apply Val.Vptr_has_type.
 Qed.
 
 Lemma match_stacks_type_retaddr:
@@ -1443,7 +1456,7 @@ Lemma match_stacks_type_retaddr:
   match_stacks j cs cs' sg ->
   Val.has_type (parent_ra cs') Tptr.
 Proof.
-  induction 1; unfold parent_ra. apply Val.Vnullptr_has_type. auto.
+  induction 1; unfold parent_ra. apply Val.Vnullptr_has_type. auto. apply Val.Vnullptr_has_type.
 Qed.
 
 (** * Syntactic properties of the translation *)
@@ -1660,7 +1673,12 @@ Proof.
   assert (slot_within_bounds (function_bounds f) Outgoing pos ty) by eauto.
   exploit frame_get_outgoing; eauto. intros (v & A & B).
   exists v; split.
-  constructor. exact A. rewrite AGARGS by auto. exact B. 
+  constructor. exact A. rewrite AGARGS by auto. exact B.
++ simpl in SEP. destruct (H1 pos ty H) as (LO & HI & AL).
+  destruct (get_location m' j sp fe_ofs_arg (size_arguments sg0) Outgoing ls0
+              pos ty SEP LO HI AL) as (v & LOAD & INJ).
+  exists v; split. constructor; exact LOAD.
+  rewrite AGARGS by auto. exact INJ.
 Qed.
 
 Lemma transl_external_argument_2:
@@ -1891,6 +1909,20 @@ Proof.
   econstructor; eauto with coqlib. econstructor; eauto.
   apply agree_regs_set_reg. apply agree_regs_set_reg. auto. auto.
   erewrite agree_incoming by eauto. exact B.
+  apply agree_locs_set_reg; auto. apply agree_locs_undef_locs; auto.
+  subst s cs'.
+  assert (ARGMEM: m' |= contains_locations j sp fe_ofs_arg (size_arguments sg0) Outgoing ls).
+  { apply sep_proj2 in SEP. apply sep_proj1 in SEP. exact SEP. }
+  destruct (H1 ofs ty IN_ARGS) as (LO & HI & AL).
+  destruct (get_location m' j sp fe_ofs_arg (size_arguments sg0) Outgoing ls
+              ofs ty ARGMEM LO HI AL) as (v & LOAD & INJ).
+  econstructor; split.
+  apply plus_one. eapply exec_Mgetparam; eauto.
+  rewrite (unfold_transf_function _ _ TRANSL). unfold fn_link_ofs.
+  eapply frame_get_parent. exact SEP.
+  econstructor; eauto with coqlib. econstructor; eauto.
+  apply agree_regs_set_reg. apply agree_regs_set_reg. auto. auto.
+  erewrite agree_incoming by eauto. exact INJ.
   apply agree_locs_set_reg; auto. apply agree_locs_undef_locs; auto.
 + (* Lgetstack, outgoing *)
   exploit frame_get_outgoing; eauto. intros (v & A & B).

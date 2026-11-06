@@ -962,13 +962,16 @@ Inductive match_stack: list Mach.stackframe -> Prop :=
       transl_code_at_pc ge ra fb f c false tf tc ->
       sp <> Vundef ->
       match_stack s ->
-      match_stack (Stackframe fb sp ra c :: s).
+      match_stack (Stackframe fb sp ra c :: s)
+  | match_stack_external: forall sp,
+      match_stack (Mach.ExternalFrame sp :: nil).
 
 Lemma parent_sp_def: forall s, match_stack s -> parent_sp s <> Vundef.
 Proof.
   induction 1; simpl.
   unfold Vnullptr; destruct Archi.ptr64; congruence.
   auto.
+  congruence.
 Qed.
 
 Lemma parent_ra_def: forall s, match_stack s -> parent_ra s <> Vundef.
@@ -976,6 +979,7 @@ Proof.
   induction 1; simpl.
   unfold Vnullptr; destruct Archi.ptr64; congruence.
   inv H0. congruence.
+  unfold Vnullptr; destruct Archi.ptr64; congruence.
 Qed.
 
 Lemma lessdef_parent_sp:

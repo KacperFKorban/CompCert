@@ -129,7 +129,9 @@ Inductive stackframe : Type :=
              (sp: val)          (**r stack pointer in calling function *)
              (ls: locset)       (**r location state in calling function *)
              (bb: bblock),      (**r continuation in calling function *)
-      stackframe.
+      stackframe
+  | ExternalFrame (sg: signature) (ls: locset).
+      (**r A fresh invocation's external caller; execution stops on return. *)
 
 Inductive state : Type :=
   | State:
@@ -197,6 +199,7 @@ Definition parent_locset (stack: list stackframe) : locset :=
   match stack with
   | nil => Locmap.init Vundef
   | Stackframe f sp ls bb :: stack' => ls
+  | ExternalFrame sg ls :: stack' => ls
   end.
 
 Inductive step: state -> trace -> state -> Prop :=

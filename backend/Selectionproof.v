@@ -895,7 +895,7 @@ Qed.
 
 (** If-conversion *)
 
-Definition eventually := Smallstep.eventually Cminor.step Cminor.final_state ge.
+Definition eventually := Smallstep.eventually Cminor.step Cminor.function_final_state ge.
 
 Lemma eventually_step: forall f s k sp e m n P,
   (forall t S', Cminor.step ge (Cminor.State f s k sp e m) t S' -> t = E0 /\ eventually n S' P) ->
@@ -1487,6 +1487,8 @@ Proof.
 + subst t. left; exists T1; auto using star_refl.
 + right; exists n, T2; split.
   apply plus_one; auto.
+  eapply eventually_final_state with (final_state := Cminor.function_final_state).
+  { intros s r FIN; inv FIN; constructor. }
   apply eventually_and_invariant; eauto using subject_reduction, wt_prog.
 Qed.
 

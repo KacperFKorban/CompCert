@@ -875,7 +875,6 @@ Qed.
 
 Inductive wt_stackframes: list stackframe -> signature -> Prop :=
   | wt_stackframes_nil: forall sg,
-      sg.(sig_res) = Xint ->
       wt_stackframes nil sg
   | wt_stackframes_cons:
       forall s res f sp pc rs env sg,
@@ -909,7 +908,7 @@ Remark wt_stackframes_change_sig:
   sg1.(sig_res) = sg2.(sig_res) -> wt_stackframes s sg1 -> wt_stackframes s sg2.
 Proof.
   intros. inv H0.
-- constructor; congruence.
+- constructor.
 - econstructor; eauto. rewrite H3. unfold proj_sig_res. rewrite H. auto.
 Qed.
 
@@ -983,7 +982,7 @@ Qed.
 Lemma wt_initial_state:
   forall S, initial_state p S -> wt_state S.
 Proof.
-  intros. inv H. constructor. constructor. rewrite H3; auto.
+  intros. inv H. constructor. constructor.
   pattern f. apply Genv.find_funct_ptr_prop with fundef unit p b.
   exact wt_p. exact H2.
   rewrite H3. constructor.

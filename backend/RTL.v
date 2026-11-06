@@ -333,6 +333,12 @@ Inductive final_state: state -> int -> Prop :=
   | final_state_intro: forall r m,
       final_state (Returnstate nil (Vint r) m) r.
 
+(** A fresh function invocation finishes at any return value, with no caller.
+    The integer index is unused and only fits the simulation interface. *)
+Inductive function_final_state: state -> int -> Prop :=
+  | function_final_state_intro: forall v m r,
+      function_final_state (Returnstate nil v m) r.
+
 (** The small-step semantics for a program. *)
 
 Definition semantics (p: program) :=

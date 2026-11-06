@@ -237,6 +237,8 @@ Definition wt_fundef (fd: fundef) :=
 Inductive wt_callstack: list stackframe -> Prop :=
   | wt_callstack_nil:
       wt_callstack nil
+  | wt_callstack_external: forall sg ls,
+      wt_locset ls -> wt_callstack (ExternalFrame sg ls :: nil)
   | wt_callstack_cons: forall f sp rs c s
         (WTSTK: wt_callstack s)
         (WTF: wt_function f = true)
@@ -249,6 +251,7 @@ Lemma wt_parent_locset:
 Proof.
   induction 1; simpl.
 - apply wt_init.
+- auto.
 - auto.
 Qed.
 

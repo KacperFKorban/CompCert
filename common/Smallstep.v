@@ -517,6 +517,26 @@ Qed.
 
 End CLOSURES.
 
+(** An eventual match remains valid when fewer states count as final.
+    This lets function-return simulations imply whole-program simulations. *)
+Lemma eventually_final_state:
+  forall (genv state: Type) (step: genv -> state -> trace -> state -> Prop)
+         (final_state final_state': state -> int -> Prop),
+  (forall s r, final_state' s r -> final_state s r) ->
+  forall ge n s P,
+  eventually step final_state ge n s P ->
+  eventually step final_state' ge n s P.
+Proof.
+  intros genv state step final_state final_state' FINAL ge n;
+  induction n; intros s P EV;
+  inversion EV as [s0 P0 HP | n0 s0 P0 NF NEXT]; subst.
+- constructor; auto.
+- econstructor.
+  + intros r FIN; eapply NF; eauto.
+  + intros t s' ST. destruct (NEXT _ _ ST) as [EQ EV'].
+    split; auto.
+Qed.
+
 (** * Transition semantics *)
 
 (** The general form of a transition semantics. *)
